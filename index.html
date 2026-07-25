@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="SHOOTEM UP — a fast, tactile voxel first-person arena shooter."
+    />
+    <meta name="theme-color" content="#111411" />
+    <meta property="og:title" content="SHOOTEM UP" />
+    <meta
+      property="og:description"
+      content="A fast, tactile voxel first-person arena shooter. Two takes claim a round."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://herm.cool/games/shoot" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>SHOOTEM UP</title>
+  </head>
+  <body>
+    <main id="game-root">
+      <canvas id="world" aria-label="SHOOTEM UP game world"></canvas>
+      <div id="post-flash" aria-hidden="true"></div>
+      <div id="film-grain" aria-hidden="true"></div>
+
+      <section id="title-screen" class="screen active" aria-labelledby="game-title">
+        <div class="title-rule title-rule-top"></div>
+        <div class="title-copy">
+          <p class="kicker">FIELD TEST 04 / CLOSE QUARTERS</p>
+          <h1 id="game-title"><span>SHOOTEM</span><span>UP</span></h1>
+          <p class="title-statement">
+            One body. One weapon.<br />
+            Thirty seconds to settle it.
+          </p>
+          <button id="start-button" class="action-button">
+            <span>ENTER THE YARD</span>
+            <small>PRESS ENTER</small>
+          </button>
+        </div>
+
+        <div class="title-format">
+          <div>
+            <strong>02</strong>
+            <span>TAKES<br />CLAIM A ROUND</span>
+          </div>
+          <div>
+            <strong>04</strong>
+            <span>ROUNDS<br />CLAIM THE MATCH</span>
+          </div>
+        </div>
+
+        <div class="title-controls" aria-label="Controls">
+          <p>FIELD MANUAL</p>
+          <dl>
+            <div><dt>WASD</dt><dd>Move</dd></div>
+            <div><dt>Mouse</dt><dd>Aim / fire</dd></div>
+            <div><dt>Shift</dt><dd>Sprint</dd></div>
+            <div><dt>Ctrl</dt><dd>Slide</dd></div>
+            <div><dt>Space</dt><dd>Jump / wall-run</dd></div>
+          </dl>
+        </div>
+
+        <p class="title-build">ORIGINAL VOXEL COMBAT SYSTEM</p>
+        <div class="title-rule title-rule-bottom"></div>
+      </section>
+
+      <section id="hud" class="hidden" aria-label="Match status">
+        <header class="match-header">
+          <div class="combatant combatant-player">
+            <span class="combatant-name">YOU</span>
+            <strong id="player-rounds">0</strong>
+            <span id="player-takes" class="take-marks" aria-label="Player takes"></span>
+          </div>
+          <div class="match-clock">
+            <span id="round-label">ROUND 01</span>
+            <strong id="take-timer">00:45</strong>
+            <span id="arena-label">SINTER YARD</span>
+          </div>
+          <div class="combatant combatant-bot">
+            <span id="bot-takes" class="take-marks" aria-label="Opponent takes"></span>
+            <strong id="bot-rounds">0</strong>
+            <span class="combatant-name">WARDEN</span>
+          </div>
+        </header>
+
+        <div class="status-panel health-panel">
+          <span class="status-label">BODY</span>
+          <strong id="health-value">100</strong>
+          <div class="status-track"><i id="health-fill"></i></div>
+        </div>
+
+        <div class="status-panel ammo-panel">
+          <span id="weapon-name" class="status-label">SERVICE PISTOL</span>
+          <strong><span id="ammo-value">12</span><small id="ammo-reserve"> / 12</small></strong>
+          <span id="fire-mode">SEMI / 9MM</span>
+        </div>
+
+        <div id="movement-state">READY</div>
+        <div id="pickup-toast"><span>ACQUIRED</span><strong></strong></div>
+
+        <div id="crosshair" aria-hidden="true">
+          <i class="crosshair-top"></i>
+          <i class="crosshair-right"></i>
+          <i class="crosshair-bottom"></i>
+          <i class="crosshair-left"></i>
+          <b></b>
+        </div>
+        <div id="hit-marker" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div id="damage-direction" aria-hidden="true"></div>
+      </section>
+
+      <section id="announcement" class="hidden" aria-live="assertive">
+        <p id="announcement-kicker"></p>
+        <h2 id="announcement-title"></h2>
+        <div id="announcement-rule"></div>
+        <p id="announcement-detail"></p>
+      </section>
+
+      <section id="pause-screen" class="screen" aria-labelledby="pause-title">
+        <div class="pause-box">
+          <p class="kicker">FIELD TEST INTERRUPTED</p>
+          <h2 id="pause-title">HOLD</h2>
+          <button id="resume-button" class="action-button">
+            <span>RETURN TO MATCH</span>
+            <small>PRESS ESCAPE</small>
+          </button>
+          <button id="restart-button" class="text-button">RESTART MATCH</button>
+          <button id="quit-button" class="text-button">QUIT TO TITLE</button>
+          <label class="sensitivity-control">
+            <span>LOOK SENSITIVITY</span>
+            <input id="sensitivity" type="range" min="0.35" max="1.65" step="0.05" value="0.85" />
+          </label>
+        </div>
+      </section>
+
+      <section id="result-screen" class="screen" aria-labelledby="result-title">
+        <div class="result-copy">
+          <p id="result-kicker" class="kicker">FIELD TEST COMPLETE</p>
+          <h2 id="result-title">YARD<br />CLEARED</h2>
+          <div class="result-score">
+            <div><span>YOU</span><strong id="result-player-score">4</strong></div>
+            <i></i>
+            <div><strong id="result-bot-score">2</strong><span>WARDEN</span></div>
+          </div>
+          <p id="result-detail"></p>
+          <button id="rematch-button" class="action-button">
+            <span>RUN IT AGAIN</span>
+            <small>PRESS ENTER</small>
+          </button>
+          <button id="result-quit-button" class="text-button">RETURN TO TITLE</button>
+        </div>
+      </section>
+
+      <button id="audio-toggle" aria-label="Toggle sound" title="Toggle sound">
+        <span>SOUND</span><i></i>
+      </button>
+
+      <section id="desktop-warning">
+        <p class="kicker">DESKTOP HARDWARE REQUIRED</p>
+        <h2>THIS YARD NEEDS<br />A KEYBOARD &amp; MOUSE</h2>
+        <p>SHOOTEM UP is tuned for precise first-person controls.</p>
+      </section>
+
+      <section id="error-screen" class="screen" aria-live="assertive">
+        <div>
+          <p class="kicker">RENDERER FAILURE</p>
+          <h2>THE YARD<br />DID NOT LOAD</h2>
+          <p id="error-detail">WebGL 2 is required to run SHOOTEM UP.</p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
