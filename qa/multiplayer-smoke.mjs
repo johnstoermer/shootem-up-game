@@ -8,7 +8,14 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
   executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  args: ['--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'],
+  args: [
+    '--use-angle=swiftshader',
+    '--enable-webgl',
+    '--ignore-gpu-blocklist',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
+  ],
 });
 
 const diagnostics = [];

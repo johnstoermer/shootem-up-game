@@ -15,6 +15,7 @@
     "test:multiplayer": "node qa/multiplayer-smoke.mjs",
     "test:performance": "node qa/performance.mjs",
     "test:load": "node qa/network-load.mjs",
+    "test:portal": "node qa/portal-smoke.mjs",
     "visual:review": "node qa/visual-review.mjs"
   },
   "dependencies": {
