@@ -10,8 +10,11 @@ try {
     throw new Error('WebGL 2 is required to run SHOOTEM UP.');
   }
   const context = canvas.getContext('webgl2', {
-    antialias: true,
+    antialias: false,
     powerPreference: 'high-performance',
+    alpha: false,
+    depth: true,
+    stencil: false,
   });
   if (!context) {
     throw new Error('Your browser could not create a WebGL 2 rendering context.');

@@ -12,11 +12,15 @@
     "preview": "npm run build && npm run start",
     "test": "node --test",
     "test:browser": "node qa/smoke.mjs",
+    "test:multiplayer": "node qa/multiplayer-smoke.mjs",
+    "test:performance": "node qa/performance.mjs",
+    "test:load": "node qa/network-load.mjs",
     "visual:review": "node qa/visual-review.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "playwright": "^1.62.0",

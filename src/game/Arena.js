@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, seededRandom } from './math.js';
 
 const COLOR = {
@@ -163,6 +164,9 @@ export class Arena {
     this.materials = this.createMaterials();
     this.sharedGeometry = new Map();
     this.dynamicLights = [];
+    this.overlapScratchA = [];
+    this.overlapScratchB = [];
+    this.bodyProbe = new THREE.Vector3();
     this.load(0, 1);
   }
 
@@ -291,7 +295,7 @@ export class Arena {
     const sun = new THREE.DirectionalLight(this.map.sunColor, this.map.sunIntensity);
     sun.position.set(-12, 23, 9);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -27;
     sun.shadow.camera.right = 27;
     sun.shadow.camera.top = 27;
@@ -306,10 +310,69 @@ export class Arena {
     if (this.map.id === 'sinter') this.buildSinterYard();
     if (this.map.id === 'flood') this.buildFloodChannel();
     if (this.map.id === 'glass') this.buildGlasshouse();
+    this.batchStaticMeshes();
     this.addAtmosphere();
     this.addBoundaryKillPlane();
     this.root.updateMatrixWorld(true);
     return this.map;
+  }
+
+  batchStaticMeshes() {
+    const animated = new Set(
+      this.animationNodes.map((entry) => entry.mesh).filter(Boolean),
+    );
+    const raycastSet = new Set(this.raycastMeshes);
+    const groups = new Map();
+    for (const child of [...this.root.children]) {
+      if (
+        !child.isMesh ||
+        child.geometry?.type !== 'BoxGeometry' ||
+        !child.material ||
+        animated.has(child) ||
+        child.userData.noBatch
+      ) {
+        continue;
+      }
+      const raycast = raycastSet.has(child);
+      const key = [
+        child.material.uuid,
+        child.castShadow ? 1 : 0,
+        child.receiveShadow ? 1 : 0,
+        raycast ? 1 : 0,
+      ].join(':');
+      if (!groups.has(key)) groups.set(key, { meshes: [], raycast });
+      groups.get(key).meshes.push(child);
+    }
+
+    const removed = new Set();
+    const mergedRaycast = [];
+    for (const group of groups.values()) {
+      if (group.meshes.length < 2) continue;
+      const geometries = group.meshes.map((mesh) => {
+        mesh.updateMatrix();
+        const geometry = mesh.geometry.clone();
+        geometry.applyMatrix4(mesh.matrix);
+        return geometry;
+      });
+      const mergedGeometry = mergeGeometries(geometries, false);
+      for (const geometry of geometries) geometry.dispose();
+      if (!mergedGeometry) continue;
+      const source = group.meshes[0];
+      const merged = new THREE.Mesh(mergedGeometry, source.material);
+      merged.name = `static-batch-${source.material.name || source.material.uuid}`;
+      merged.castShadow = source.castShadow;
+      merged.receiveShadow = source.receiveShadow;
+      merged.frustumCulled = true;
+      this.root.add(merged);
+      for (const mesh of group.meshes) {
+        removed.add(mesh);
+        this.root.remove(mesh);
+      }
+      if (group.raycast) mergedRaycast.push(merged);
+    }
+    this.raycastMeshes = this.raycastMeshes
+      .filter((mesh) => !removed.has(mesh))
+      .concat(mergedRaycast);
   }
 
   addBox({
@@ -782,6 +845,7 @@ export class Arena {
       type: 'dust',
       mesh: points,
       speed: this.map.id === 'flood' ? 1.8 : 0.35,
+      accumulator: 0,
     });
   }
 
@@ -812,9 +876,13 @@ export class Arena {
     for (const node of this.animationNodes) {
       if (node.type === 'dust') {
         node.mesh.rotation.y += delta * 0.006;
+        node.accumulator += delta;
+        if (node.accumulator < 0.1) continue;
+        const dustDelta = node.accumulator;
+        node.accumulator = 0;
         const positions = node.mesh.geometry.attributes.position;
         for (let index = 0; index < positions.count; index += 1) {
-          let y = positions.getY(index) - delta * node.speed;
+          let y = positions.getY(index) - dustDelta * node.speed;
           if (y < 0.08) y = 7.8;
           positions.setY(index, y);
         }
@@ -854,10 +922,12 @@ export class Arena {
     return !hit;
   }
 
-  getOverlaps(position, radius, height) {
-    return this.colliders.filter((collider) =>
-      intersectsBody(position, radius, height, collider),
-    );
+  getOverlaps(position, radius, height, target = []) {
+    target.length = 0;
+    for (const collider of this.colliders) {
+      if (intersectsBody(position, radius, height, collider)) target.push(collider);
+    }
+    return target;
   }
 
   moveBody(body, delta, options = {}) {
@@ -874,11 +944,21 @@ export class Arena {
       if (Math.abs(amount) < 0.000001) return;
       const old = body.position[axis];
       body.position[axis] += amount;
-      let overlaps = this.getOverlaps(body.position, radius, height);
+      let overlaps = this.getOverlaps(
+        body.position,
+        radius,
+        height,
+        this.overlapScratchA,
+      );
       if (overlaps.length && wasGrounded) {
         const oldY = body.position.y;
         body.position.y += stepHeight;
-        const steppedOverlaps = this.getOverlaps(body.position, radius, height);
+        const steppedOverlaps = this.getOverlaps(
+          body.position,
+          radius,
+          height,
+          this.overlapScratchB,
+        );
         if (!steppedOverlaps.length) {
           stepped = true;
           return;
@@ -887,7 +967,12 @@ export class Arena {
       }
       if (!overlaps.length) return;
       body.position[axis] = old;
-      overlaps = this.getOverlaps(body.position, radius + 0.035, height);
+      overlaps = this.getOverlaps(
+        body.position,
+        radius + 0.035,
+        height,
+        this.overlapScratchA,
+      );
       const sign = Math.sign(amount);
       hitWall = new THREE.Vector3(
         axis === 'x' ? -sign : 0,
@@ -903,7 +988,12 @@ export class Arena {
     const verticalAmount = body.velocity.y * delta;
     const oldY = body.position.y;
     body.position.y += verticalAmount;
-    const overlaps = this.getOverlaps(body.position, radius, height);
+    const overlaps = this.getOverlaps(
+      body.position,
+      radius,
+      height,
+      this.overlapScratchA,
+    );
     if (overlaps.length) {
       if (verticalAmount <= 0) {
         let highest = -Infinity;
@@ -934,9 +1024,14 @@ export class Arena {
     }
 
     if (!body.grounded && body.velocity.y <= 0) {
-      const probe = body.position.clone();
+      const probe = this.bodyProbe.copy(body.position);
       probe.y -= 0.055;
-      const support = this.getOverlaps(probe, radius * 0.92, height);
+      const support = this.getOverlaps(
+        probe,
+        radius * 0.92,
+        height,
+        this.overlapScratchA,
+      );
       if (support.length) {
         body.grounded = true;
         body.velocity.y = 0;

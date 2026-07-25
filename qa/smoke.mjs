@@ -76,6 +76,7 @@ const after = await page.evaluate(() => {
     phase: game.phase,
     renderCalls: game.rendering.renderer.info.render.calls,
     arenaMeshes: game.arena.raycastMeshes.length,
+    colliders: game.arena.colliders.length,
     pickups: game.pickups.pickups.length,
     botHealth: game.bot.health,
   };
@@ -110,7 +111,12 @@ const mechanics = await page.evaluate(() => {
 });
 
 if (after.ammo >= before.ammo) throw new Error('Firing did not consume ammunition.');
-if (after.renderCalls < 1 || after.arenaMeshes < 50 || after.pickups < 5) {
+if (
+  after.renderCalls < 1 ||
+  after.arenaMeshes < 10 ||
+  after.colliders < 15 ||
+  after.pickups < 5
+) {
   throw new Error(`Game scene is incomplete: ${JSON.stringify(after)}`);
 }
 const movementDistance = Math.hypot(

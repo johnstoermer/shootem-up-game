@@ -5,6 +5,8 @@ import { createWeaponModel, WEAPONS } from './weapons.js';
 const FORWARD = new THREE.Vector3();
 const RIGHT = new THREE.Vector3();
 const WISH = new THREE.Vector3();
+const SLIDE_DIRECTION = new THREE.Vector3();
+const WALL_TANGENT = new THREE.Vector3();
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 export class PlayerController {
@@ -307,7 +309,7 @@ export class PlayerController {
       this.slideCooldown = 0.95;
       const slideDirection =
         horizontalSpeed > 0.1
-          ? new THREE.Vector3(this.velocity.x, 0, this.velocity.z).normalize()
+          ? SLIDE_DIRECTION.set(this.velocity.x, 0, this.velocity.z).normalize()
           : FORWARD;
       this.velocity.x = slideDirection.x * Math.max(9.4, horizontalSpeed * 1.07);
       this.velocity.z = slideDirection.z * Math.max(9.4, horizontalSpeed * 1.07);
@@ -333,7 +335,7 @@ export class PlayerController {
 
     if (canWallRun) {
       this.wallNormal.copy(wall.normal);
-      const tangent = new THREE.Vector3(-wall.normal.z, 0, wall.normal.x);
+      const tangent = WALL_TANGENT.set(-wall.normal.z, 0, wall.normal.x);
       if (tangent.dot(FORWARD) < 0) tangent.negate();
       const alongSpeed = Math.max(6.4, this.velocity.dot(tangent));
       this.velocity.x = damp(this.velocity.x, tangent.x * alongSpeed, 9, dt);
@@ -530,7 +532,10 @@ export class PlayerController {
       : this.slideTime > 0 || Math.hypot(this.velocity.x, this.velocity.z) > 7.7
         ? 79
         : 73;
-    this.camera.fov = damp(this.camera.fov, targetFov, 9, delta);
-    this.camera.updateProjectionMatrix();
+    const nextFov = damp(this.camera.fov, targetFov, 9, delta);
+    if (Math.abs(nextFov - this.camera.fov) > 0.001) {
+      this.camera.fov = nextFov;
+      this.camera.updateProjectionMatrix();
+    }
   }
 }

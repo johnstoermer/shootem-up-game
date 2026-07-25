@@ -11,6 +11,9 @@ export class Interface {
     this.resultScreen = byId('result-screen');
     this.errorScreen = byId('error-screen');
     this.startButton = byId('start-button');
+    this.onlineButton = byId('online-button');
+    this.privateButton = byId('private-button');
+    this.callsign = byId('callsign');
     this.resumeButton = byId('resume-button');
     this.restartButton = byId('restart-button');
     this.quitButton = byId('quit-button');
@@ -18,6 +21,31 @@ export class Interface {
     this.resultQuitButton = byId('result-quit-button');
     this.audioToggle = byId('audio-toggle');
     this.sensitivity = byId('sensitivity');
+    this.qualityProfile = byId('quality-profile');
+    this.networkLobby = byId('network-lobby');
+    this.lobbyKicker = byId('lobby-kicker');
+    this.lobbyTitle = byId('lobby-title');
+    this.lobbyDetail = byId('lobby-detail');
+    this.lobbyCloseButton = byId('lobby-close-button');
+    this.privateRoomControls = byId('private-room-controls');
+    this.createRoomButton = byId('create-room-button');
+    this.roomCodeInput = byId('room-code-input');
+    this.joinRoomButton = byId('join-room-button');
+    this.queueState = byId('queue-state');
+    this.queueCode = byId('queue-code');
+    this.queueMessage = byId('queue-message');
+    this.copyRoomButton = byId('copy-room-button');
+    this.lobbyConnectionLight = byId('lobby-connection-light');
+    this.lobbyConnection = byId('lobby-connection');
+    this.lobbyLatency = byId('lobby-latency');
+    this.titleNetworkState = byId('title-network-state');
+    this.networkMeter = byId('network-meter');
+    this.networkMode = byId('network-mode');
+    this.networkPing = byId('network-ping');
+    this.opponentName = byId('opponent-name');
+    this.resultOpponentName = byId('result-opponent-name');
+    this.connectionOverlay = byId('connection-overlay');
+    this.connectionDetail = byId('connection-detail');
     this.playerRounds = byId('player-rounds');
     this.botRounds = byId('bot-rounds');
     this.playerTakes = byId('player-takes');
@@ -48,6 +76,8 @@ export class Interface {
     this.resultDetail = byId('result-detail');
     this.postFlash = byId('post-flash');
     this.errorDetail = byId('error-detail');
+    this.onlineMatch = false;
+    this.currentOpponent = 'WARDEN';
     this.pickupUntil = 0;
     this.hitUntil = 0;
     this.damageUntil = 0;
@@ -58,14 +88,98 @@ export class Interface {
 
   showTitle() {
     this.titleScreen.classList.add('active');
+    this.networkLobby.classList.remove('active');
+    this.connectionOverlay.classList.add('hidden');
     this.pauseScreen.classList.remove('active');
     this.resultScreen.classList.remove('active');
     this.hud.classList.add('hidden');
     this.announcement.classList.add('hidden');
   }
 
+  showPrivateLobby(prefill = '') {
+    this.titleScreen.classList.remove('active');
+    this.networkLobby.classList.add('active');
+    this.privateRoomControls.classList.remove('hidden');
+    this.queueState.classList.add('hidden');
+    this.copyRoomButton.classList.add('hidden');
+    this.lobbyKicker.textContent = 'LOCKED MATCH CHANNEL';
+    this.lobbyTitle.innerHTML = 'PRIVATE<br>DUEL';
+    this.lobbyDetail.textContent =
+      'Open a locked room or enter a five-character field code.';
+    this.roomCodeInput.value = String(prefill).toUpperCase().slice(0, 5);
+    if (prefill) window.setTimeout(() => this.roomCodeInput.focus(), 0);
+  }
+
+  showQueue({ title, detail, code = '', copyable = false }) {
+    this.titleScreen.classList.remove('active');
+    this.networkLobby.classList.add('active');
+    this.privateRoomControls.classList.add('hidden');
+    this.queueState.classList.remove('hidden');
+    this.lobbyKicker.textContent = 'LIVE MATCH SERVICE';
+    this.lobbyTitle.innerHTML = title;
+    this.lobbyDetail.textContent = detail;
+    this.queueCode.textContent = code;
+    this.queueMessage.textContent = code
+      ? 'Room secured. Waiting for the second combatant.'
+      : 'Searching the live field for a low-latency opponent.';
+    this.copyRoomButton.classList.toggle('hidden', !copyable);
+  }
+
+  showLobbyError(message) {
+    this.lobbyKicker.textContent = 'MATCH SERVICE RESPONSE';
+    this.lobbyDetail.textContent = message;
+    this.queueMessage.textContent = message;
+  }
+
+  setConnection(status, rtt = 0, online = null) {
+    const label =
+      status === 'online'
+        ? online == null
+          ? 'NETWORK READY'
+          : `${online} ONLINE`
+        : status === 'reconnecting'
+          ? 'RECONNECTING'
+          : status === 'connecting'
+            ? 'CONNECTING'
+            : 'NETWORK STANDBY';
+    this.titleNetworkState.textContent = label;
+    this.lobbyConnection.textContent = label;
+    this.lobbyConnectionLight.classList.toggle(
+      'offline',
+      status === 'offline' || status === 'reconnecting',
+    );
+    const latency = rtt > 0 ? `${Math.round(rtt)} MS` : '-- MS';
+    this.lobbyLatency.textContent = latency;
+    this.networkPing.textContent = latency;
+    this.networkMeter.classList.toggle('degraded', rtt >= 90 && rtt < 180);
+    this.networkMeter.classList.toggle(
+      'lost',
+      status === 'offline' || status === 'reconnecting' || rtt >= 180,
+    );
+  }
+
+  setOnlineMatch(active, opponent = 'WARDEN') {
+    this.onlineMatch = active;
+    this.currentOpponent = opponent || 'RIVAL';
+    this.opponentName.textContent = this.currentOpponent;
+    this.resultOpponentName.textContent = this.currentOpponent;
+    this.networkMeter.classList.toggle('hidden', !active);
+    this.restartButton.classList.toggle('hidden', active);
+    this.quitButton.textContent = active ? 'FORFEIT AND QUIT' : 'QUIT TO TITLE';
+  }
+
+  showConnectionOverlay(message) {
+    this.connectionDetail.textContent = message;
+    this.connectionOverlay.classList.remove('hidden');
+  }
+
+  hideConnectionOverlay() {
+    this.connectionOverlay.classList.add('hidden');
+  }
+
   showHUD() {
     this.titleScreen.classList.remove('active');
+    this.networkLobby.classList.remove('active');
     this.pauseScreen.classList.remove('active');
     this.resultScreen.classList.remove('active');
     this.hud.classList.remove('hidden');
@@ -81,7 +195,8 @@ export class Interface {
     this.hud.classList.remove('hidden');
   }
 
-  showResult(won, playerScore, botScore) {
+  showResult(won, playerScore, botScore, opponent = this.currentOpponent) {
+    this.networkLobby.classList.remove('active');
     this.hud.classList.add('hidden');
     this.announcement.classList.add('hidden');
     this.pauseScreen.classList.remove('active');
@@ -89,10 +204,25 @@ export class Interface {
     this.resultTitle.innerHTML = won ? 'YARD<br>CLEARED' : 'BODY<br>RECOVERED';
     this.resultPlayerScore.textContent = playerScore;
     this.resultBotScore.textContent = botScore;
+    this.resultOpponentName.textContent = opponent;
     this.resultDetail.textContent = won
       ? 'You took the lanes, controlled the weapons, and closed the match.'
-      : 'The Warden claimed the yard. Move sooner, own the pickups, run it again.';
+      : `${opponent} claimed the yard. Move sooner, own the pickups, run it again.`;
+    this.rematchButton.querySelector('span').textContent = this.onlineMatch
+      ? 'REQUEST REMATCH'
+      : 'RUN IT AGAIN';
     this.resultScreen.classList.add('active');
+  }
+
+  showRematchWaiting() {
+    this.rematchButton.querySelector('span').textContent = 'REMATCH REQUESTED';
+    this.rematchButton.querySelector('small').textContent = 'WAITING FOR RIVAL';
+    this.rematchButton.disabled = true;
+  }
+
+  resetRematchButton() {
+    this.rematchButton.disabled = false;
+    this.rematchButton.querySelector('small').textContent = 'PRESS ENTER';
   }
 
   showError(message) {
@@ -101,6 +231,8 @@ export class Interface {
   }
 
   setTakes(container, count) {
+    if (Number(container.dataset.count) === count) return;
+    container.dataset.count = String(count);
     container.replaceChildren();
     for (let index = 0; index < 2; index += 1) {
       const mark = document.createElement('i');
@@ -110,20 +242,34 @@ export class Interface {
   }
 
   updateHUD(state, player, bot, map, movement) {
-    this.playerRounds.textContent = state.playerRounds;
-    this.botRounds.textContent = state.botRounds;
+    if (this.playerRounds.textContent !== String(state.playerRounds)) {
+      this.playerRounds.textContent = state.playerRounds;
+    }
+    if (this.botRounds.textContent !== String(state.botRounds)) {
+      this.botRounds.textContent = state.botRounds;
+    }
     this.setTakes(this.playerTakes, state.playerTakes);
     this.setTakes(this.botTakes, state.botTakes);
-    this.roundLabel.textContent = `ROUND ${String(state.roundNumber).padStart(2, '0')}`;
-    this.arenaLabel.textContent = map.name;
-    this.timer.textContent = state.overtime ? 'OVERTIME' : formatTime(state.takeTime);
-    this.healthValue.textContent = Math.ceil(player.health);
-    this.healthFill.style.width = `${clamp(player.health, 0, 100)}%`;
+    const roundLabel = `ROUND ${String(state.roundNumber).padStart(2, '0')}`;
+    if (this.roundLabel.textContent !== roundLabel) this.roundLabel.textContent = roundLabel;
+    if (this.arenaLabel.textContent !== map.name) this.arenaLabel.textContent = map.name;
+    const timer = state.overtime ? 'OVERTIME' : formatTime(state.takeTime);
+    if (this.timer.textContent !== timer) this.timer.textContent = timer;
+    const health = String(Math.ceil(player.health));
+    if (this.healthValue.textContent !== health) this.healthValue.textContent = health;
+    const healthWidth = `${Math.round(clamp(player.health, 0, 100) * 10) / 10}%`;
+    if (this.healthFill.style.width !== healthWidth) this.healthFill.style.width = healthWidth;
     this.healthPanel.classList.toggle('danger', player.health <= 30);
-    this.weaponName.textContent = player.definition.name;
-    this.ammoValue.textContent = String(player.ammo).padStart(2, '0');
-    this.ammoReserve.textContent = ` / ${player.definition.ammo}`;
-    this.fireMode.textContent = player.definition.fireMode;
+    if (this.weaponName.textContent !== player.definition.name) {
+      this.weaponName.textContent = player.definition.name;
+    }
+    const ammo = String(player.ammo).padStart(2, '0');
+    if (this.ammoValue.textContent !== ammo) this.ammoValue.textContent = ammo;
+    const reserve = ` / ${player.definition.ammo}`;
+    if (this.ammoReserve.textContent !== reserve) this.ammoReserve.textContent = reserve;
+    if (this.fireMode.textContent !== player.definition.fireMode) {
+      this.fireMode.textContent = player.definition.fireMode;
+    }
     this.crosshair.classList.toggle('empty', player.ammo <= 0);
     this.crosshair.classList.toggle('focused', player.focused);
 
@@ -143,7 +289,9 @@ export class Interface {
       movementLabel = player.weaponType === 'sidearm' ? 'FIND A WEAPON' : 'R TO DISCARD';
       hot = true;
     }
-    this.movementState.textContent = movementLabel;
+    if (this.movementState.textContent !== movementLabel) {
+      this.movementState.textContent = movementLabel;
+    }
     this.movementState.classList.toggle('hot', hot);
   }
 

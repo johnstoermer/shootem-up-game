@@ -50,6 +50,9 @@ export class VFX {
     this.particles = [];
     this.transients = [];
     this.debris = [];
+    this.particleLimit = 560;
+    this.debrisLimit = 72;
+    this.lastParticleCount = 0;
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
@@ -93,7 +96,7 @@ export class VFX {
   }
 
   addParticle(position, velocity, color, life, size = 0.08, gravity = 6, drag = 0.7) {
-    if (this.particles.length >= MAX_PARTICLES) this.particles.shift();
+    if (this.particles.length >= this.particleLimit) this.particles.shift();
     this.particles.push({
       position: position.clone(),
       velocity: velocity.clone(),
@@ -269,6 +272,7 @@ export class VFX {
   }
 
   spawnShell(position, direction, color = 0xc99a43, large = false) {
+    this.trimDebris();
     const material = new THREE.MeshStandardMaterial({
       color,
       roughness: 0.32,
@@ -300,6 +304,7 @@ export class VFX {
   }
 
   spawnChunk(position, velocity, color, size = 0.15, life = 1.2) {
+    this.trimDebris();
     const material = new THREE.MeshStandardMaterial({
       color,
       roughness: 0.75,
@@ -488,19 +493,24 @@ export class VFX {
     const size = geometry.attributes.size;
     const alpha = geometry.attributes.alpha;
     const count = Math.min(this.particles.length, MAX_PARTICLES);
-    for (let index = 0; index < count; index += 1) {
-      const particle = this.particles[index];
-      const amount = clamp(particle.life / particle.maxLife, 0, 1);
-      position.setXYZ(index, particle.position.x, particle.position.y, particle.position.z);
-      color.setXYZ(index, particle.color.r, particle.color.g, particle.color.b);
-      size.setX(index, particle.size * (0.65 + amount * 0.35));
-      alpha.setX(index, Math.min(1, amount * 2.5));
+    if (count > 0) {
+      for (let index = 0; index < count; index += 1) {
+        const particle = this.particles[index];
+        const amount = clamp(particle.life / particle.maxLife, 0, 1);
+        position.setXYZ(index, particle.position.x, particle.position.y, particle.position.z);
+        color.setXYZ(index, particle.color.r, particle.color.g, particle.color.b);
+        size.setX(index, particle.size * (0.65 + amount * 0.35));
+        alpha.setX(index, Math.min(1, amount * 2.5));
+      }
+      position.needsUpdate = true;
+      color.needsUpdate = true;
+      size.needsUpdate = true;
+      alpha.needsUpdate = true;
     }
-    position.needsUpdate = true;
-    color.needsUpdate = true;
-    size.needsUpdate = true;
-    alpha.needsUpdate = true;
-    geometry.setDrawRange(0, count);
+    if (count !== this.lastParticleCount) {
+      geometry.setDrawRange(0, count);
+      this.lastParticleCount = count;
+    }
 
     for (let index = this.transients.length - 1; index >= 0; index -= 1) {
       const entry = this.transients[index];
@@ -543,5 +553,24 @@ export class VFX {
 
   resize(pixelRatio) {
     this.particlePoints.material.uniforms.pixelRatio.value = Math.min(pixelRatio, 2);
+  }
+
+  setQuality(performance) {
+    const scale = performance?.renderScale ?? 1;
+    const low = performance?.profile === 'performance' || scale < 0.75;
+    this.particleLimit = low ? 320 : scale < 0.9 ? 440 : 560;
+    this.debrisLimit = low ? 38 : scale < 0.9 ? 54 : 72;
+    if (this.particles.length > this.particleLimit) {
+      this.particles.splice(0, this.particles.length - this.particleLimit);
+    }
+    while (this.debris.length > this.debrisLimit) this.trimDebris(true);
+  }
+
+  trimDebris(force = false) {
+    if (!force && this.debris.length < this.debrisLimit) return;
+    const entry = this.debris.shift();
+    if (!entry) return;
+    this.root.remove(entry.mesh);
+    entry.mesh.material.dispose();
   }
 }

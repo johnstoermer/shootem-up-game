@@ -2,15 +2,18 @@ import * as THREE from 'three';
 import { createPickupPedestal, createWeaponModel, WEAPONS } from './weapons.js';
 
 export class PickupManager {
-  constructor(scene) {
+  constructor(scene, camera = null) {
     this.scene = scene;
+    this.camera = camera;
     this.root = new THREE.Group();
     this.root.name = 'weapon-pickups';
     this.scene.add(this.root);
     this.pickups = [];
+    this.lightAccumulator = 0;
   }
 
   clear() {
+    for (const pickup of this.pickups) pickup.beaconMaterial.dispose();
     for (const child of [...this.root.children]) this.root.remove(child);
     this.pickups.length = 0;
   }
@@ -63,6 +66,7 @@ export class PickupManager {
         position: slot.position.clone(),
         group,
         pedestal,
+        light: pedestal.userData.light,
         modelRoot,
         beacon,
         beaconMaterial,
@@ -96,6 +100,24 @@ export class PickupManager {
   }
 
   update(time, delta) {
+    this.lightAccumulator += delta;
+    if (this.lightAccumulator >= 0.2) {
+      this.lightAccumulator = 0;
+      const nearest = this.camera
+        ? this.pickups
+            .filter((pickup) => pickup.active)
+            .map((pickup) => ({
+              pickup,
+              distance: pickup.position.distanceToSquared(this.camera.position),
+            }))
+            .sort((first, second) => first.distance - second.distance)
+            .slice(0, 2)
+            .map((entry) => entry.pickup)
+        : [];
+      for (const pickup of this.pickups) {
+        pickup.light.visible = pickup.active && nearest.includes(pickup);
+      }
+    }
     for (const pickup of this.pickups) {
       if (!pickup.active) continue;
       pickup.modelRoot.rotation.y += delta * 0.72;
@@ -104,7 +126,7 @@ export class PickupManager {
       pickup.modelRoot.rotation.z =
         Math.sin(time * 1.4 + pickup.phase) * 0.06;
       pickup.pedestal.userData.ring.rotation.z += delta * 0.55;
-      pickup.pedestal.userData.light.intensity =
+      pickup.light.intensity =
         1.5 + Math.sin(time * 2.8 + pickup.phase) * 0.28;
       pickup.beaconMaterial.opacity =
         0.12 + Math.sin(time * 2.1 + pickup.phase) * 0.035;

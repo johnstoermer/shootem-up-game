@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="SHOOTEM UP — a fast, tactile voxel first-person arena shooter."
+      content="SHOOTEM UP — a fast, server-authoritative voxel multiplayer arena shooter."
     />
     <meta name="theme-color" content="#111411" />
     <meta property="og:title" content="SHOOTEM UP" />
     <meta
       property="og:description"
-      content="A fast, tactile voxel first-person arena shooter. Two takes claim a round."
+      content="A fast, tactile online voxel arena shooter. Two takes claim a round."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://herm.cool/games/shoot" />
@@ -31,12 +31,22 @@
           <h1 id="game-title"><span>SHOOTEM</span><span>UP</span></h1>
           <p class="title-statement">
             One body. One weapon.<br />
-            Thirty seconds to settle it.
+            Forty-five seconds to settle it.
           </p>
-          <button id="start-button" class="action-button">
-            <span>ENTER THE YARD</span>
-            <small>PRESS ENTER</small>
-          </button>
+          <div class="title-actions">
+            <button id="online-button" class="action-button">
+              <span>QUICK DUEL</span>
+              <small>FIND RIVAL</small>
+            </button>
+            <div class="title-secondary-actions">
+              <button id="private-button" class="text-button">PRIVATE ROOM</button>
+              <button id="start-button" class="text-button">PRACTICE AGAINST WARDEN</button>
+            </div>
+            <label class="callsign-field">
+              <span>CALLSIGN</span>
+              <input id="callsign" type="text" maxlength="18" autocomplete="nickname" spellcheck="false" value="ROOKIE" />
+            </label>
+          </div>
         </div>
 
         <div class="title-format">
@@ -61,8 +71,51 @@
           </dl>
         </div>
 
-        <p class="title-build">ORIGINAL VOXEL COMBAT SYSTEM</p>
+        <p class="title-build">
+          <span id="title-network-state">NETWORK READY</span>
+          <i></i>
+          ORIGINAL VOXEL COMBAT SYSTEM
+        </p>
         <div class="title-rule title-rule-bottom"></div>
+      </section>
+
+      <section id="network-lobby" class="screen" aria-labelledby="lobby-title">
+        <div class="lobby-shell">
+          <header>
+            <p id="lobby-kicker" class="kicker">LIVE MATCH SERVICE</p>
+            <button id="lobby-close-button" class="lobby-close" aria-label="Close network menu">CLOSE</button>
+          </header>
+          <h2 id="lobby-title">PRIVATE<br />DUEL</h2>
+          <p id="lobby-detail">Open a locked room or enter a five-character field code.</p>
+
+          <div id="private-room-controls" class="private-room-controls">
+            <button id="create-room-button" class="action-button">
+              <span>OPEN A ROOM</span>
+              <small>HOST</small>
+            </button>
+            <div class="join-room">
+              <label for="room-code-input">FIELD CODE</label>
+              <div>
+                <input id="room-code-input" type="text" maxlength="5" autocomplete="off" spellcheck="false" placeholder="-----" />
+                <button id="join-room-button">JOIN</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="queue-state" class="queue-state hidden">
+            <div class="queue-scope" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </div>
+            <strong id="queue-code"></strong>
+            <p id="queue-message">Searching the live field for an opponent.</p>
+            <button id="copy-room-button" class="text-button hidden">COPY INVITE LINK</button>
+          </div>
+
+          <footer>
+            <span><i id="lobby-connection-light"></i><b id="lobby-connection">CONNECTING</b></span>
+            <span id="lobby-latency">-- MS</span>
+          </footer>
+        </div>
       </section>
 
       <section id="hud" class="hidden" aria-label="Match status">
@@ -80,9 +133,15 @@
           <div class="combatant combatant-bot">
             <span id="bot-takes" class="take-marks" aria-label="Opponent takes"></span>
             <strong id="bot-rounds">0</strong>
-            <span class="combatant-name">WARDEN</span>
+            <span id="opponent-name" class="combatant-name">WARDEN</span>
           </div>
         </header>
+
+        <div id="network-meter" class="network-meter hidden">
+          <i></i>
+          <span id="network-mode">LIVE</span>
+          <strong id="network-ping">-- MS</strong>
+        </div>
 
         <div class="status-panel health-panel">
           <span class="status-label">BODY</span>
@@ -131,6 +190,14 @@
             <span>LOOK SENSITIVITY</span>
             <input id="sensitivity" type="range" min="0.35" max="1.65" step="0.05" value="0.85" />
           </label>
+          <label class="performance-control">
+            <span>RENDER PROFILE</span>
+            <select id="quality-profile">
+              <option value="auto">AUTO / ADAPTIVE</option>
+              <option value="high">HIGH / LOCKED</option>
+              <option value="performance">PERFORMANCE</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -141,7 +208,7 @@
           <div class="result-score">
             <div><span>YOU</span><strong id="result-player-score">4</strong></div>
             <i></i>
-            <div><strong id="result-bot-score">2</strong><span>WARDEN</span></div>
+            <div><strong id="result-bot-score">2</strong><span id="result-opponent-name">WARDEN</span></div>
           </div>
           <p id="result-detail"></p>
           <button id="rematch-button" class="action-button">
@@ -149,6 +216,15 @@
             <small>PRESS ENTER</small>
           </button>
           <button id="result-quit-button" class="text-button">RETURN TO TITLE</button>
+        </div>
+      </section>
+
+      <section id="connection-overlay" class="hidden" aria-live="assertive">
+        <div>
+          <p class="kicker">MATCH LINK INTERRUPTED</p>
+          <h2>HOLDING<br />YOUR SLOT</h2>
+          <p id="connection-detail">Reconnecting to the authoritative match server.</p>
+          <div class="reconnect-track"><i></i></div>
         </div>
       </section>
 
